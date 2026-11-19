@@ -1,6 +1,8 @@
 import { findCategory, isUuid, parsePriceRange, type ListingPage } from "@/lib/listings";
 import { ApiError, apiFailure, apiJson, catalogJson, listingDetailColumns, listingInput, listingSummaryColumns, photoBucket, photoPath, readJson, toListing, toListingSummary } from "@/lib/marketplace-server";
 import { createSupabaseClient, createSupabaseServerClient } from "@/lib/supabase";
+import { rememberSeller, sellerBrowser } from "@/lib/seller-browser";
+import type { Tables } from "@/lib/database.types";
 
 const pageSize = 24;
 const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
@@ -62,8 +64,9 @@ export async function POST(request: Request) {
     const storage = await supabase.storage.from(photoBucket).exists(photoPath(input.id));
     if (!storage.data) throw new ApiError(422, "Upload the listing photo before publishing.");
 
-    const { data, error } = await supabase.from("listings").insert(input).select(listingDetailColumns).single();
-    if (!error) return apiJson({ listing: toListing(data) }, 201);
+    const seller = sellerBrowser(request);
+    const { data, error } = await supabase.rpc("publish_marketplace_listing", { p_listing: input, p_owner_hash: seller.hash }).single<Tables<"listings">>();
+    if (!error) return rememberSeller(request, apiJson({ listing: toListing(data) }, 201), seller);
     if (error.code !== "23505") throw error;
 
     const existing = await supabase.from("listings").select(listingDetailColumns).eq("id", input.id).single();

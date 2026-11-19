@@ -5,10 +5,10 @@ import { findCategory, isEmail, isUuid, parsePrice, type Listing, type ListingSu
 import { SupabaseConfigurationError } from "@/lib/supabase";
 
 export const photoBucket = "listing-images";
-export const listingSummaryColumns = "id,title,price,category,location,created_at,image_url";
+export const listingSummaryColumns = "id,title,price,category,location,created_at,image_url,sold_at";
 export const listingDetailColumns = `${listingSummaryColumns},description,seller_email` as const;
 
-type ListingRow = Pick<Tables<"listings">, "id" | "title" | "price" | "category" | "location" | "created_at" | "image_url">;
+type ListingRow = Pick<Tables<"listings">, "id" | "title" | "price" | "category" | "location" | "created_at" | "image_url" | "sold_at">;
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -115,6 +115,7 @@ export function toListingSummary(row: ListingRow): ListingSummary {
     imageUrl: photoUrl.startsWith("/listings/") ? photoUrl : `${photoUrl}?size=thumbnail`,
     location: row.location ?? "",
     createdAt: row.created_at,
+    soldAt: row.sold_at ?? null,
   };
 }
 

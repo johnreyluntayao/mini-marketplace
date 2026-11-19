@@ -3,6 +3,7 @@ import {
   Bike,
   BookOpen,
   Button,
+  CreditCard,
   Grid2X2,
   Lamp,
   Laptop,
@@ -42,6 +43,9 @@ export function CategoryNavigation({ category, filters }: { category?: CategoryS
       </div>
       <Button asChild className="mt-4 hidden h-10 w-full justify-start gap-2.5 px-3 font-semibold lg:inline-flex">
         <Link href="/create"><Plus aria-hidden="true" /> Create listing</Link>
+      </Button>
+      <Button asChild variant="ghost" className="mt-1 hidden h-10 w-full justify-start gap-2.5 px-3 font-semibold lg:inline-flex">
+        <Link href="/sell/payments"><CreditCard aria-hidden="true" /> Seller payments</Link>
       </Button>
       <nav aria-label="Listing categories" className="lg:mt-5">
         <ul className="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] sm:px-6 lg:block lg:space-y-1 lg:overflow-visible lg:p-0">

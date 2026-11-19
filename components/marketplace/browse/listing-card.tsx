@@ -1,4 +1,4 @@
-import { Image, Link, MapPin } from "@/lib/imports";
+import { Badge, Image, Link, MapPin } from "@/lib/imports";
 import { formatPrice, type ListingSummary } from "@/lib/listings";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ export function ListingCard({ listing, listView }: { listing: ListingSummary; li
           unoptimized
           className="object-cover transition-transform duration-300 motion-safe:group-hover:scale-[1.035]"
         />
+        {listing.soldAt && <Badge variant="secondary" className="absolute top-2 left-2 bg-card text-card-foreground">Sold</Badge>}
       </div>
       <div className={cn("min-w-0 px-0.5 pt-2", listView && "flex flex-col justify-center py-2")}>
         <p className="mb-0.5 text-[1.05rem] leading-tight font-bold tracking-tight">{formatPrice(listing.price)}</p>

@@ -19,3 +19,9 @@ The form validates required fields and accepts JPEG, PNG, WebP, AVIF, and GIF im
 Open a listing to view the larger photo, price, description, category, location, date, and seller contact. The detail page links back to the category.
 
 Choose **Message seller** and enter your email and message. The app saves the message in Supabase and confirms the save. Buyer emails and message contents require administrator access. Administrators can retrieve messages for a listing through the authenticated API documented in the [development guide](DEVELOPMENT_GUIDE.md).
+
+## Buy and sell with Stripe
+
+Open **Seller payments**, enter the email used on your listings, and choose **Connect with Stripe**. Complete Stripe's hosted onboarding in the same browser you use to publish listings. The marketplace uses a private browser cookie to keep other people from linking their Stripe account to listings they didn’t publish.
+
+Eligible listings show **Buy Now** after the seller can accept card payments and receive payouts. Stripe Checkout charges the connected seller account for the listing price. The marketplace collects a 10% application fee, rounded to the nearest cent. Stripe processing fees are separate. The order page confirms the purchase after Stripe verifies payment by webhook. Sold listings remain visible with a **Sold** label. All payments use Stripe sandbox mode.

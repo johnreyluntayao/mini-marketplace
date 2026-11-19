@@ -9,7 +9,7 @@ import { MarketplaceRequestError, marketplaceRequest } from "@/lib/marketplace-c
 
 type ListingStatus =
   | { state: "loading" }
-  | { state: "ready"; listing: Listing }
+  | { state: "ready"; listing: Listing; canBuy: boolean }
   | { state: "missing" }
   | { state: "error"; message: string };
 
@@ -19,8 +19,8 @@ export function LiveListingDetail({ id, published }: { id: string; published: bo
 
   useEffect(() => {
     const controller = new AbortController();
-    marketplaceRequest<{ listing: Listing }>(`/api/listings/${id}`, { signal: controller.signal }).then(({ listing }) => {
-      if (!controller.signal.aborted) setStatus({ state: "ready", listing });
+    marketplaceRequest<{ listing: Listing; canBuy: boolean }>(`/api/listings/${id}`, { signal: controller.signal }).then(({ listing, canBuy }) => {
+      if (!controller.signal.aborted) setStatus({ state: "ready", listing, canBuy });
     }).catch((failure: Error) => {
       if (controller.signal.aborted) return;
       setStatus(failure instanceof MarketplaceRequestError && failure.status === 404
@@ -30,7 +30,7 @@ export function LiveListingDetail({ id, published }: { id: string; published: bo
     return () => controller.abort();
   }, [attempt, id]);
 
-  if (status.state === "ready") return <ListingDetail listing={status.listing} published={published} />;
+  if (status.state === "ready") return <ListingDetail listing={status.listing} published={published} canBuy={status.canBuy} />;
   if (status.state === "loading") return <ListingDetailLoading />;
 
   return (

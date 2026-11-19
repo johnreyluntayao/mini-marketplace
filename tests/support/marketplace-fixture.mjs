@@ -5,6 +5,8 @@ import { access } from "node:fs/promises";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { setTimeout as delay } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
+import { createPaymentsFixture, testStripeKey, testWebhookSecret } from "./stripe-fixture.mjs";
 
 const require = createRequire(import.meta.url);
 const secretKey = "sb_secret_marketplace_test";
@@ -57,7 +59,7 @@ function matchingRecords(records, params) {
   });
 }
 
-export async function startMarketplaceFixture({ port } = {}) {
+export async function startMarketplaceFixture({ port, payments = false } = {}) {
   await access(".next/BUILD_ID").catch(() => { throw new Error("Run npm run build before the integration tests."); });
 
   const listings = new Map();
@@ -65,6 +67,7 @@ export async function startMarketplaceFixture({ port } = {}) {
   const photos = new Map();
   const faults = { catalog: false, thumbnail: false };
   const adminToken = randomUUID() + randomUUID();
+  const payment = payments ? createPaymentsFixture({ listings, json, readBody }) : null;
 
   const backend = createServer(async (request, response) => {
     try {
@@ -72,6 +75,20 @@ export async function startMarketplaceFixture({ port } = {}) {
       const isServer = request.headers.apikey === secretKey;
       const method = request.method;
       const single = request.headers.accept?.includes("vnd.pgrst.object");
+
+      if (pathname === "/rest/v1/rpc/publish_marketplace_listing" && method === "POST") {
+        if (!isServer) return json(response, 403, { code: "42501" });
+        const { p_listing: record, p_owner_hash: ownerHash } = JSON.parse((await readBody(request)).toString());
+        if (!/^[0-9a-f]{64}$/.test(ownerHash)) return json(response, 400, { code: "23514" });
+        if (listings.has(record.id)) return json(response, 409, { code: "23505" });
+        record.created_at = new Date().toISOString();
+        record.sold_at = null;
+        listings.set(record.id, record);
+        payment?.owners.set(record.id, ownerHash);
+        return json(response, 200, single ? record : [record]);
+      }
+
+      if (payment && await payment.handle(request, response, new URL(request.url, "http://127.0.0.1"), isServer)) return;
 
       if (pathname === "/rest/v1/listings" || pathname === "/rest/v1/messages") {
         const isMessage = pathname.endsWith("/messages");
@@ -136,13 +153,18 @@ export async function startMarketplaceFixture({ port } = {}) {
   }
 
   const origin = `http://127.0.0.1:${port}`;
-  const app = spawn(process.execPath, [require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
+  const preload = payments ? ["--import", pathToFileURL(require.resolve("./stripe-transport.mjs")).href] : [];
+  const app = spawn(process.execPath, [...preload, require.resolve("next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
     env: {
       ...process.env,
       SUPABASE_URL: `http://127.0.0.1:${upstreamPort}`,
       SUPABASE_PUBLISHABLE_KEY: "sb_publishable_marketplace_test",
       SUPABASE_SECRET_KEY: secretKey,
       MARKETPLACE_ADMIN_TOKEN: adminToken,
+      STRIPE_SECRET_KEY: payments ? testStripeKey : "",
+      STRIPE_WEBHOOK_SECRET: payments ? testWebhookSecret : "",
+      STRIPE_FIXTURE_PORT: String(upstreamPort),
+      MARKETPLACE_URL: origin,
     },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
@@ -160,7 +182,7 @@ export async function startMarketplaceFixture({ port } = {}) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
       const response = await fetch(`${origin}/api/listings`, { signal: AbortSignal.timeout(700) });
-      if (response.ok) return { origin, adminToken, listings, messages, photos, faults, close };
+      if (response.ok) return { origin, adminToken, listings, messages, photos, faults, payment, close };
     } catch {
       // The production server may still be starting.
     }
