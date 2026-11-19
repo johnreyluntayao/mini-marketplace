@@ -21,7 +21,7 @@ import {
 import { isEmail } from "@/lib/listings";
 import { postMarketplace } from "@/lib/marketplace-client";
 
-export function MessageSeller({ listingId, title }: { listingId: string; title: string }) {
+export function MessageSeller({ listingId, title, secondary = false }: { listingId: string; title: string; secondary?: boolean }) {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<{ email?: string; message?: string }>({});
@@ -69,7 +69,7 @@ export function MessageSeller({ listingId, title }: { listingId: string; title: 
   return (
     <Dialog onOpenChange={(open) => { if (open && status === "saved") setStatus("idle"); }}>
       <DialogTrigger asChild>
-        <Button className="h-11 w-full rounded-lg font-semibold"><MessageCircle aria-hidden="true" /> Message seller</Button>
+        <Button variant={secondary ? "outline" : "default"} className="h-11 w-full rounded-lg font-semibold"><MessageCircle aria-hidden="true" /> Message seller</Button>
       </DialogTrigger>
       <DialogContent className="max-w-[calc(100%-1.5rem)] gap-5 sm:max-w-[470px]">
         <DialogHeader>

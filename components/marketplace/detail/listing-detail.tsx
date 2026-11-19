@@ -13,11 +13,12 @@ import {
   UserRound,
 } from "@/lib/imports";
 import { MessageSeller } from "./message-seller";
+import { BuyNowButton } from "./buy-now-button";
 import { findCategory, formatPrice, type Listing } from "@/lib/listings";
 
 const listedDate = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 
-export function ListingDetail({ listing, published }: { listing: Listing; published: boolean }) {
+export function ListingDetail({ listing, published, canBuy }: { listing: Listing; published: boolean; canBuy: boolean }) {
   const category = findCategory(listing.category);
 
   return (
@@ -26,9 +27,10 @@ export function ListingDetail({ listing, published }: { listing: Listing; publis
         <ArrowLeft aria-hidden="true" className="size-4" /> {category ? `Back to ${category.label}` : "Back to marketplace"}
       </Link>
       {published && (
-        <p role="status" className="mb-5 flex items-center gap-2 rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground">
-          <CheckCircle2 aria-hidden="true" className="size-5 shrink-0" /> Your listing is published.
-        </p>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground">
+          <p role="status" className="flex items-center gap-2"><CheckCircle2 aria-hidden="true" className="size-5 shrink-0" /> Your listing is published.</p>
+          {!canBuy && !listing.soldAt && <Link href="/sell/payments" className="rounded hover:underline">Set up payments</Link>}
+        </div>
       )}
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.38fr)_minmax(0,1fr)] lg:gap-8">
         <div className="relative aspect-square max-h-[660px] overflow-hidden rounded-2xl border bg-muted sm:aspect-[1.18]">
@@ -43,7 +45,10 @@ export function ListingDetail({ listing, published }: { listing: Listing; publis
         </div>
         <Card className="min-w-0 gap-5 rounded-2xl p-5 shadow-none sm:gap-6 sm:p-7">
           <div className="space-y-2.5">
-            <Badge variant="secondary" className="h-auto max-w-full bg-accent whitespace-normal wrap-anywhere text-accent-foreground">{category?.label ?? listing.category}</Badge>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className="h-auto max-w-full bg-accent whitespace-normal wrap-anywhere text-accent-foreground">{category?.label ?? listing.category}</Badge>
+              {listing.soldAt && <Badge variant="secondary">Sold</Badge>}
+            </div>
             <h1 className="font-display text-4xl leading-tight font-medium tracking-[-0.04em] wrap-anywhere sm:text-[2.75rem]">{listing.title}</h1>
             <p className="text-3xl leading-none font-bold tracking-tight">{formatPrice(listing.price)}</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1 text-sm text-muted-foreground">
@@ -66,7 +71,10 @@ export function ListingDetail({ listing, published }: { listing: Listing; publis
               <p className="text-sm wrap-anywhere text-muted-foreground">{listing.sellerEmail}</p>
             </div>
           </section>
-          <MessageSeller listingId={listing.id} title={listing.title} />
+          <div className="space-y-2">
+            {canBuy && !listing.soldAt && <BuyNowButton listingId={listing.id} />}
+            <MessageSeller listingId={listing.id} title={listing.title} secondary={canBuy} />
+          </div>
         </Card>
       </div>
     </main>

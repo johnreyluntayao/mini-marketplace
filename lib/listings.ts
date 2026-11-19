@@ -18,6 +18,7 @@ export type ListingSummary = {
   imageUrl: string;
   location: string;
   createdAt: string;
+  soldAt: string | null;
 };
 
 export type Listing = ListingSummary & { description: string; sellerEmail: string };

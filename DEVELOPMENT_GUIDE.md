@@ -27,6 +27,11 @@ Import shared UI and icons from `@/lib/imports`. Shared components that build on
 | `GET /api/listings/[id]/photo` | Redirects to a short-lived Storage URL. Use `size=thumbnail` for a gallery-sized photo. Older records with a local asset URL retain that URL. |
 | `POST /api/messages` | JSON with `id` (UUID), `listingId`, `buyerEmail`, and `message`. Returns the saved message ID. |
 | `GET /api/messages?listingId=…` | Admin-only. Accepts `Authorization: Bearer <MARKETPLACE_ADMIN_TOKEN>` and optional `page`. Returns `messages` and `nextPage`. |
+| `POST /api/stripe/onboarding` | Takes the seller email and returns a short-lived Stripe-hosted onboarding URL. |
+| `GET /api/stripe/onboarding?email=…` | Refreshes the connected account status for the seller's browser. |
+| `POST /api/stripe/checkout` | Takes a listing UUID and an idempotent order UUID. Returns a sandbox Checkout URL. |
+| `POST /api/stripe/webhook` | Verifies the raw request signature. Handles Connect account updates and checkout completion or expiration. |
+| `GET /api/stripe/orders/[id]?session_id=…` | Returns the receipt status and amount for the matching Checkout Session. |
 
 Initial inserts and uploads return `201`. A matching retry of a completed operation uses the same ID and returns `200`. Conflicting listing or message content under a previously used ID returns `409`. Invalid input, unavailable listings, and upstream failures return an HTTP error and a JSON `error` string.
 
@@ -35,6 +40,8 @@ Initial inserts and uploads return `201`. A matching retry of a completed operat
 `listings` stores public listing details and has a generated `search_text` field. `messages.listing_id` references the listing UUID, which gives administrators the seller contact through the listing. Row Level Security permits public listing reads. Server-side requests to Supabase perform writes and sign image URLs. The admin API applies the bearer token before reading private messages.
 
 The upload UUID becomes the listing UUID. The `image_url` column stores a stable app-relative URL. Visitor and demo photos stay in the private bucket as `<id>.webp` and `<id>.thumb.webp`. The photo route checks that a listing exists before signing a Storage URL. A retry uses the stored full-size photo to repair a partial upload. Older listings with a full-size photo can still supply the gallery image. Abandoned uploads stay private as staged objects. `supabase/seed.sql` defines the demo database rows. The setup guide covers copying the photo objects for a fresh project.
+
+Publishing creates the listing and its private seller browser association in a single transaction. Checkout snapshots the price and the 10% application fee before creating a direct charge on the connected account. The database allows one pending or paid order per item. A signed Connect event and verified Stripe PaymentIntent are required to confirm a payment. The confirmed order and listing's Sold status are written atomically.
 
 ## Performance
 
@@ -45,6 +52,6 @@ The upload UUID becomes the listing UUID. The `image_url` column stores a stable
 
 ## Verification
 
-Run `npm run lint`, `npm run build`, and `npm test`. `npm test` starts the existing production build and substitutes a local HTTP fixture for Supabase. It covers validation, photo variants and partial-upload recovery, publishing and retry behavior, photo privacy, search, pagination, conditional caching, message privacy, and an upstream failure.
+Run `npm run lint`, `npm run build`, and `npm test`. The tests start the production build using isolated Supabase and Stripe fixtures. They cover the marketplace's read and write flows, seller ownership, Checkout amount and fee, signature validation, duplicate and unrelated events, checkout expiration, and sold status.
 
 For the hosted smoke test, configure the runtime settings in the [setup guide](SETUP.md). Publish a listing with a photo, verify it from a fresh session, and save a message. Check the corresponding rows and photo objects in Supabase. For browser regression testing, try an invalid file, an empty or invalid form, a missing listing, and a failed catalog request. Verify that the retry action restores results after access is available again.

@@ -2,6 +2,7 @@ import sharp from "sharp";
 import { acceptedPhotoTypes, maxPhotoBytes } from "@/lib/listings";
 import { ApiError, apiFailure, apiJson, photoBucket, photoPath, requireId } from "@/lib/marketplace-server";
 import { createSupabaseServerClient } from "@/lib/supabase";
+import { rememberSeller } from "@/lib/seller-browser";
 
 const photoFormats = new Set(["jpeg", "png", "webp", "heif", "gif"]);
 
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
 
     if (!savedFullPhoto) {
       const savedThumbnail = await bucket.exists(thumbPath);
-      if (savedThumbnail.data) return apiJson({ uploadId });
+      if (savedThumbnail.data) return rememberSeller(request, apiJson({ uploadId }));
 
       // A partially completed upload may already have won the full-size object path.
       const storedPhoto = await bucket.download(fullPath);
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
 
     const thumbnail = await sharp(photo).resize(480, 480, { fit: "inside", withoutEnlargement: true }).webp({ quality: 76 }).toBuffer();
     const savedThumbnail = await store(thumbPath, thumbnail);
-    return apiJson({ uploadId }, savedFullPhoto || savedThumbnail ? 201 : 200);
+    return rememberSeller(request, apiJson({ uploadId }, savedFullPhoto || savedThumbnail ? 201 : 200));
   } catch (error) {
     return apiFailure(error, "Couldn’t upload the photo. Please try again.");
   }

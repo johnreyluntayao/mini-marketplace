@@ -10,6 +10,7 @@ export {
   ChevronDownIcon,
   ChevronUpIcon,
   CircleAlert,
+  CreditCard,
   Grid2X2,
   Image as ImageIcon,
   ImagePlus,

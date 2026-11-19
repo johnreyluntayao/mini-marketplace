@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowLeft, ArrowRight, Card, Link, Tag } from "@/lib/imports";
+import { ArrowLeft, ArrowRight, Card, CreditCard, Link, Tag } from "@/lib/imports";
 
 export const metadata: Metadata = { title: "Create a listing" };
 
@@ -23,6 +23,9 @@ export default function CreatePage() {
           <ArrowRight aria-hidden="true" className="size-5 shrink-0 text-primary" />
         </Link>
       </Card>
+      <Link href="/sell/payments" className="mt-5 inline-flex items-center gap-2 rounded-md text-sm font-semibold text-primary-strong hover:underline">
+        <CreditCard aria-hidden="true" className="size-4" /> Seller payments
+      </Link>
     </main>
   );
 }
