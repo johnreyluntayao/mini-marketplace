@@ -8,8 +8,8 @@ export async function GET(request: Request) {
     retry.searchParams.set("email", email);
     const seller = sellerBrowser(request);
     const account = seller.hasCookie ? await findSellerAccount(seller.hash, email) : undefined;
-    if (account) {
-      const url = await sellerOnboardingUrl(request, email, account);
+    if (account?.payments_enabled) {
+      const url = await sellerOnboardingUrl(request, email, account.stripe_account_id);
       return new Response(null, { status: 303, headers: { Location: url, "Cache-Control": "no-store" } });
     }
   } catch {

@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import { ApiError } from "@/lib/marketplace-server";
 import { isEmail } from "@/lib/listings";
 import { marketplaceOrigin, stripeClient } from "@/lib/payments/config";
+import type { SellerPaymentStatus } from "@/lib/payments/types";
 import { createSupabaseServerClient } from "@/lib/supabase";
 
 export function sellerEmail(value: unknown) {
@@ -12,11 +13,17 @@ export function sellerEmail(value: unknown) {
   return email;
 }
 
-export async function findSellerAccount(ownerHash: string, email: string) {
-  const { data, error } = await createSupabaseServerClient().from("seller_payment_accounts")
-    .select("stripe_account_id").eq("owner_hash", ownerHash).eq("seller_email", email).maybeSingle();
+export async function findSellerAccount(ownerHash: string, email?: string) {
+  const query = createSupabaseServerClient().from("seller_payment_accounts")
+    .select("seller_email,stripe_account_id,payments_enabled,details_submitted,charges_enabled,payouts_enabled").eq("owner_hash", ownerHash);
+  const { data, error } = await (email ? query.eq("seller_email", email) : query
+    .order("details_submitted", { ascending: false })
+    .order("charges_enabled", { ascending: false })
+    .order("payouts_enabled", { ascending: false })
+    .order("stripe_checked_at", { ascending: false })
+    .order("seller_email").limit(1)).maybeSingle();
   if (error) throw error;
-  return data?.stripe_account_id;
+  return data;
 }
 
 export async function connectSeller(ownerHash: string, email: string) {
@@ -48,7 +55,17 @@ export async function connectSeller(ownerHash: string, email: string) {
   return saved;
 }
 
-export async function refreshSellerAccount(accountId: string, stripe: Stripe = stripeClient()) {
+export async function setSellerPaymentsEnabled(ownerHash: string, email: string, enabled: boolean) {
+  const account = await findSellerAccount(ownerHash, email);
+  if (!account) throw new ApiError(404, "No Stripe account was found for this seller in this browser.");
+  const status = enabled ? await refreshSellerAccount(account.stripe_account_id) : "disconnected";
+  const { error } = await createSupabaseServerClient().from("seller_payment_accounts")
+    .update({ payments_enabled: enabled }).eq("owner_hash", ownerHash).eq("seller_email", email);
+  if (error) throw error;
+  return status;
+}
+
+export async function refreshSellerAccount(accountId: string, stripe: Stripe = stripeClient()): Promise<SellerPaymentStatus> {
   const checkedAt = new Date().toISOString();
   const account = await stripe.accounts.retrieve(accountId);
   const status = {

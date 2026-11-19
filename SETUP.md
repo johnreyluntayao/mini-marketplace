@@ -72,5 +72,7 @@ The sandbox key lets the CLI authenticate without the browser pairing flow. If t
 | The catalog is empty | Publish a listing to the connected project. Browser-only drafts from the earlier preview stay local. |
 | Photo upload returns `413`, `415`, or `422` | Choose a readable JPEG, PNG, WebP, AVIF, or GIF up to 4 MiB. |
 | Admin message read returns `401` | Check `MARKETPLACE_ADMIN_TOKEN` and the `Authorization: Bearer …` header. |
-| Buy Now is missing | Verify the Stripe signing secret, that Stripe enabled both charges and payouts, and that the listing was published from the connected seller's browser with the same email. |
+| Buy Now is missing | Verify the Stripe signing secret, that Seller payments is connected with charges and payouts enabled, and that the listing was published from the connected seller's browser with the same email. |
+| Checkout says the item is reserved | In the original checkout tab, return from Stripe or click **Cancel Checkout** from the listing. The reservation also expires when its Stripe session expires. |
+| Stripe says the sandbox has reached its webhook limit | Ask the sandbox owner to free an endpoint slot or provide a sandbox with capacity, then register the public webhook. |
 | Payment confirmation stays pending | Check Stripe's event delivery for the production Connect endpoint, confirm the matching signing secret is deployed, and retry failed deliveries. |

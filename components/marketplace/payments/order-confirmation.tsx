@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import { Button, Card, CheckCircle2, CircleAlert, Link, LoaderCircle } from "@/lib/imports";
 import { formatPrice } from "@/lib/listings";
 import { marketplaceRequest } from "@/lib/marketplace-client";
-
-type Receipt = { listingId: string; title: string; amountCents: number; status: "pending" | "paid" | "expired" };
+import type { OrderReceipt } from "@/lib/payments/types";
 
 export function OrderConfirmation({ orderId, sessionId }: { orderId: string; sessionId: string }) {
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receipt, setReceipt] = useState<OrderReceipt | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
@@ -20,7 +19,7 @@ export function OrderConfirmation({ orderId, sessionId }: { orderId: string; ses
 
     async function check() {
       try {
-        const result = await marketplaceRequest<Receipt>(url, { signal: controller.signal, cache: "no-store" });
+        const result = await marketplaceRequest<OrderReceipt>(url, { signal: controller.signal, cache: "no-store" });
         if (controller.signal.aborted) return;
         setReceipt(result);
         if (result.status === "pending") {
