@@ -22,14 +22,16 @@ Import shared UI and icons from `@/lib/imports`. Shared components that build on
 | --- | --- |
 | `GET /api/listings` | Optional `q`, `category`, `location`, `minPrice`, `maxPrice`, and `cursor` query parameters. Returns `listings` and `nextCursor`. |
 | `POST /api/listings` | JSON with `uploadId`, `title`, `description`, `price`, `category`, `sellerEmail`, and optional `location`. Returns the published `listing`. |
-| `GET /api/listings/[id]` | Returns a `listing` with the description and seller contact. |
+| `GET /api/listings/[id]` | Returns a `listing` with its description and seller contact, plus `canBuy` for new checkout attempts. |
 | `POST /api/upload` | Multipart `uploadId` (UUID) and `photo` (file). Returns `uploadId` after staging the images. |
 | `GET /api/listings/[id]/photo` | Redirects to a short-lived Storage URL. Use `size=thumbnail` for a gallery-sized photo. Older records with a local asset URL retain that URL. |
 | `POST /api/messages` | JSON with `id` (UUID), `listingId`, `buyerEmail`, and `message`. Returns the saved message ID. |
 | `GET /api/messages?listingId=…` | Admin-only. Accepts `Authorization: Bearer <MARKETPLACE_ADMIN_TOKEN>` and optional `page`. Returns `messages` and `nextPage`. |
-| `POST /api/stripe/onboarding` | Takes the seller email and returns a short-lived Stripe-hosted onboarding URL. |
-| `GET /api/stripe/onboarding?email=…` | Refreshes the connected account status for the seller's browser. |
+| `POST /api/stripe/onboarding` | Takes the seller email and returns a Stripe onboarding URL or the marketplace's Seller payments URL. |
+| `GET /api/stripe/onboarding` | Returns the seller's Stripe status for this browser. An optional `email` selects a specific seller. |
+| `PATCH /api/stripe/onboarding` | Takes `email` and `enabled` and updates whether the seller accepts new checkouts. Requires the publishing browser's seller cookie. |
 | `POST /api/stripe/checkout` | Takes a listing UUID and an idempotent order UUID. Returns a sandbox Checkout URL. |
+| `DELETE /api/stripe/checkout` | Takes the listing and order UUIDs and releases the unpaid checkout. |
 | `POST /api/stripe/webhook` | Verifies the raw request signature. Handles Connect account updates and checkout completion or expiration. |
 | `GET /api/stripe/orders/[id]?session_id=…` | Returns the receipt status and amount for the matching Checkout Session. |
 
@@ -41,7 +43,7 @@ Initial inserts and uploads return `201`. A matching retry of a completed operat
 
 The upload UUID becomes the listing UUID. The `image_url` column stores a stable app-relative URL. Visitor and demo photos stay in the private bucket as `<id>.webp` and `<id>.thumb.webp`. The photo route checks that a listing exists before signing a Storage URL. A retry uses the stored full-size photo to repair a partial upload. Older listings with a full-size photo can still supply the gallery image. Abandoned uploads stay private as staged objects. `supabase/seed.sql` defines the demo database rows. The setup guide covers copying the photo objects for a fresh project.
 
-Publishing creates the listing and its private seller browser association in a single transaction. Checkout snapshots the price and the 10% application fee before creating a direct charge on the connected account. The database allows one pending or paid order per item. A signed Connect event and verified Stripe PaymentIntent are required to confirm a payment. The confirmed order and listing's Sold status are written atomically.
+Publishing creates the listing and its private seller browser association in a single transaction. Checkout snapshots the price and the 10% application fee before creating a direct charge on the connected account. The database allows one pending or paid order per item. Buyers can release their unpaid reservation from the checkout tab. Disconnecting seller payments pauses new reservations. A signed Connect event and verified Stripe PaymentIntent confirm a payment and update the order and listing in one transaction.
 
 ## Performance
 

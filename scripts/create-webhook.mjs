@@ -53,6 +53,13 @@ async function register() {
 }
 
 register().catch((error) => {
-  console.error(error instanceof Stripe.errors.StripeError ? (error.code || "Stripe rejected the webhook registration.") : error.message);
+  if (error instanceof Stripe.errors.StripeError) {
+    const limit = /maximum of (\d+) test webhook endpoints/i.exec(error.message)?.[1];
+    console.error(limit
+      ? `This Stripe sandbox already has ${limit} test webhook endpoints. Ask the sandbox owner for an available slot.`
+      : error.code || "Stripe rejected the webhook registration.");
+  } else {
+    console.error(error.message);
+  }
   process.exitCode = 1;
 });

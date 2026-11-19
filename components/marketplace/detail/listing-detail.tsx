@@ -72,7 +72,7 @@ export function ListingDetail({ listing, published, canBuy }: { listing: Listing
             </div>
           </section>
           <div className="space-y-2">
-            {canBuy && !listing.soldAt && <BuyNowButton listingId={listing.id} />}
+            {!listing.soldAt && <BuyNowButton listingId={listing.id} canBuy={canBuy} />}
             <MessageSeller listingId={listing.id} title={listing.title} secondary={canBuy} />
           </div>
         </Card>

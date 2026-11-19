@@ -25,6 +25,25 @@ async function expireOrder(order: Order) {
   if (error) throw error;
 }
 
+export async function cancelCheckout(stripe: Stripe, listingId: string, orderId: string) {
+  const { data: order, error } = await createSupabaseServerClient().from("orders")
+    .select("*").eq("id", orderId).eq("listing_id", listingId).maybeSingle();
+  if (error) throw error;
+  if (!order || order.status === "expired") return;
+  if (order.status === "paid") throw new ApiError(409, "This payment has already completed.");
+  if (!order.stripe_checkout_id) throw new ApiError(409, "Checkout is still opening. Try cancelling again in a moment.");
+
+  const sessionId = order.stripe_checkout_id;
+  const options = { stripeAccount: order.stripe_account_id };
+  const session = await stripe.checkout.sessions.expire(sessionId, {}, options).catch(async (failure: unknown) => {
+    const current = await stripe.checkout.sessions.retrieve(sessionId, {}, options);
+    if (current.status === "open") throw failure;
+    return current;
+  });
+  if (session.status !== "expired") throw new ApiError(409, "This payment has already completed.");
+  await expireOrder(order);
+}
+
 export async function openCheckout(stripe: Stripe, origin: string, listingId: string, orderId: string) {
   let order = await reserveOrder(listingId, orderId);
   if (order.id !== orderId && order.stripe_checkout_id && Date.parse(order.expires_at) <= Date.now()) {
@@ -34,7 +53,9 @@ export async function openCheckout(stripe: Stripe, origin: string, listingId: st
       order = await reserveOrder(listingId, orderId);
     }
   }
-  if (order.id !== orderId) throw new ApiError(409, "Another buyer has opened Checkout for this item. Try again later.");
+  if (order.id !== orderId) {
+    throw new ApiError(409, "This item is reserved in Checkout. If you opened it in another browser or tab, return there to finish or cancel. Otherwise, try again once the reservation expires.");
+  }
 
   const receipt = `${origin}/orders/${orderId}/success?session_id=`;
   const stripeAccount = order.stripe_account_id;
@@ -57,7 +78,7 @@ export async function openCheckout(stripe: Stripe, origin: string, listingId: st
     metadata: { [orderMetadata]: order.id },
     expires_at: Math.floor(Date.parse(order.expires_at) / 1000),
     success_url: receipt + "{CHECKOUT_SESSION_ID}",
-    cancel_url: `${origin}/item/${listingId}`,
+    cancel_url: `${origin}/item/${listingId}#checkout-cancelled-${order.id}`,
   }, { stripeAccount, idempotencyKey: `marketplace-checkout-${order.id}` });
 
   if (session.livemode || !session.url) throw new Error("Stripe did not return a sandbox Checkout URL");

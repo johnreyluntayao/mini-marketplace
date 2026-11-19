@@ -24,7 +24,7 @@ export function createPaymentsFixture({ listings, json, readBody }) {
     const item = listings.get(args.p_listing_id);
     const account = [...accounts.values()].find((entry) =>
       entry.owner_hash === owners.get(item?.id) && entry.seller_email === item?.seller_email.toLowerCase());
-    const eligible = !item?.sold_at && item?.price >= 0.5 && account?.charges_enabled && account?.payouts_enabled && account?.details_submitted;
+    const eligible = !item?.sold_at && item?.price >= 0.5 && account?.payments_enabled && account?.charges_enabled && account?.payouts_enabled && account?.details_submitted;
     if (name === "marketplace_listing_can_buy") return json(response, 200, Boolean(eligible));
     if (name === "reserve_marketplace_order") {
       if (!item || item.sold_at) return json(response, 400, { message: "listing_unavailable" });
@@ -80,12 +80,20 @@ export function createPaymentsFixture({ listings, json, readBody }) {
       assert.equal(form.get("line_items[0][price_data][unit_amount]"), String(order.amount_cents));
       assert.equal(form.get("payment_intent_data[application_fee_amount]"), String(order.platform_fee_cents));
       assert.ok(form.get("success_url").includes(orderId + "/success?session_id={CHECKOUT_SESSION_ID}"));
+      assert.ok(form.get("cancel_url").endsWith(`/item/${order.listing_id}#checkout-cancelled-${order.id}`));
       const id = "cs_test_Fixture" + (sessions.size + 1);
       const session = {
         id, url: "https://checkout.stripe.com/c/pay/" + id, livemode: false, status: "open",
         payment_status: "unpaid", metadata: { marketplace_order_id: orderId }, currency: "usd", amount_total: order.amount_cents,
       };
       sessions.set(id, session);
+      return json(response, 200, session);
+    }
+    if (path.startsWith("/v1/checkout/sessions/") && path.endsWith("/expire")) {
+      const session = sessions.get(path.split("/").at(-2));
+      assert.equal(accountId, orders.get(session.metadata.marketplace_order_id).stripe_account_id);
+      if (session.status !== "open") return json(response, 400, { error: { type: "invalid_request_error", message: "Session already closed" } });
+      session.status = "expired";
       return json(response, 200, session);
     }
     if (path.startsWith("/v1/checkout/sessions/")) {
@@ -117,7 +125,7 @@ export function createPaymentsFixture({ listings, json, readBody }) {
     } else if (request.method === "POST") {
       const row = JSON.parse((await readBody(request)).toString());
       const key = row.owner_hash + ":" + row.seller_email;
-      if (!table.has(key)) table.set(key, { stripe_checked_at: "-infinity", ...row });
+      if (!table.has(key)) table.set(key, { stripe_checked_at: "-infinity", payments_enabled: true, ...row });
       response.writeHead(201).end();
     } else {
       const matching = [...table.values()].filter((row) => dbMatches(row, searchParams));

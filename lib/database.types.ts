@@ -182,6 +182,7 @@ export type Database = {
           charges_enabled: boolean
           details_submitted: boolean
           owner_hash: string
+          payments_enabled: boolean
           payouts_enabled: boolean
           seller_email: string
           stripe_account_id: string
@@ -191,6 +192,7 @@ export type Database = {
           charges_enabled?: boolean
           details_submitted?: boolean
           owner_hash: string
+          payments_enabled?: boolean
           payouts_enabled?: boolean
           seller_email: string
           stripe_account_id: string
@@ -200,6 +202,7 @@ export type Database = {
           charges_enabled?: boolean
           details_submitted?: boolean
           owner_hash?: string
+          payments_enabled?: boolean
           payouts_enabled?: boolean
           seller_email?: string
           stripe_account_id?: string
